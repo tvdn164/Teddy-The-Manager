@@ -31,26 +31,4 @@ def load_folders(directory):
             folders.append(item)
     return folders
 
-def populateModel(self):
-        whitelist = ['mdl_master', 'rig_master', 'lgt_master', 'anim_master']
-        directory = ''
-
-        for folder_name in os.listdir(directory):
-            folder_path = os.path.join(directory, folder_name)
-            if os.path.isdir(folder_path) and folder_name in whitelist:
-                max_files = self.find_max_files_in_highest_version(folder_path)
-                for max_file in max_files:
-                    self.addButton(max_file)
-
-def find_max_files_in_highest_version(self, folder_path):
-        version_folders = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f)) and f.startswith('v')]
-        if not version_folders:
-            return []
-
-        version_folders_sorted = sorted(version_folders, key=lambda f: int(f[1:]), reverse=True)
-        for version_folder in version_folders_sorted:
-            highest_version_path = os.path.join(folder_path, version_folder)
-            max_files = [f for f in os.listdir(highest_version_path) if os.path.isfile(os.path.join(highest_version_path, f)) and f.endswith('.max')]
-            if max_files:
-                return [os.path.join(highest_version_path, f) for f in max_files]
 

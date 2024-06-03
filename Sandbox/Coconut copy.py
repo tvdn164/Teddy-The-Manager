@@ -9,15 +9,9 @@ import pymxs
 import os
 import json
 
-PROJECT_DIRECTORY = r'C:\Users\nghia.tran\Documents\Sandbox'
+sys.path.append(r'C:\Users\nghia.tran\Documents\Sandbox')
 
-def load_project_files(directory):
-    files = []
-    for root, dirs, files_in_dir in os.walk(directory):
-        for file in files_in_dir:
-            if file.endswith('.max'):
-                files.append(os.path.join(root, file))
-    return files
+from ReadOS import *
 
 def get_max_window():
     return pymxs.runtime.windows.getMAXHWND()
@@ -232,10 +226,10 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__(parent)
         
         # Set the window size
-        self.setFixedSize(800, 600)
+        self.setFixedSize(1200, 600)
         
         # Set the window title
-        self.setWindowTitle("Coconut by Nghia.Tran")
+        self.setWindowTitle("Teddy the Manager by Nghia.Tran")
         
         # Create the main widget and layout
         main_widget = QWidget()
@@ -288,17 +282,23 @@ class MainWindow(QMainWindow):
         user_layout = QHBoxLayout()
         
         # Create the label
-        label = QLabel("Current user:")
-        user_layout.addWidget(label)
+        user_label = QLabel("Current user:")
+        user_layout.addWidget(user_label)
         
-        # Create the combo box
-        combo_box = QComboBox()
-        combo_box.addItems(["User1", "User2", "User3"])
-        user_layout.addWidget(combo_box)
+        # Create the user combo box
+        self.user_combo_box = QComboBox()
+        self.load_user_names_into_combobox()
+        user_layout.addWidget(self.user_combo_box)
         
         # Add the user selector layout to the main layout
         layout.addLayout(user_layout)
     
+    def load_user_names_into_combobox(self):
+        user_folders = load_folders(USER_DATA_DIRECTORY)
+        self.user_combo_box.clear()
+        for user_folder in user_folders:
+            self.user_combo_box.addItem(user_folder)
+
     def create_context_groupbox(self, layout):
         # Create the group box
         groupbox = QGroupBox("Context")
@@ -310,7 +310,7 @@ class MainWindow(QMainWindow):
         
         # Create the search icon
         search_icon = QLabel()
-        pixmap = QPixmap("C:\\Users\\nghia.tran\\Downloads\\20369-16x16x32.png")
+        pixmap = QPixmap("C:\\Users\\nghia.tran\\Downloads\\photo_2024-05-29_11-23-33.png")
         search_icon.setPixmap(pixmap)
         search_layout.addWidget(search_icon)
         
@@ -326,30 +326,68 @@ class MainWindow(QMainWindow):
         combobox_layout = QGridLayout()
         
         # Create the combo boxes and their labels
-        label1 = QLabel("Project:")
-        combo_box1 = QComboBox()
-        combo_box1.addItems(["Option 1", "Option 2", "Option 3"])
-        combobox_layout.addWidget(label1, 0, 0)
-        combobox_layout.addWidget(combo_box1, 1, 0)
-        
-        label2 = QLabel("Sequences:")
-        combo_box2 = QComboBox()
-        combo_box2.addItems(["Option 1", "Option 2", "Option 3"])
-        combobox_layout.addWidget(label2, 0, 1)
-        combobox_layout.addWidget(combo_box2, 1, 1)
         
         label3 = QLabel("Shot:")
-        combo_box3 = QComboBox()
-        combo_box3.addItems(["Option 1", "Option 2", "Option 3"])
+        self.combo_box3 = QComboBox()
+        self.combo_box3.currentIndexChanged.connect(self.on_shot_folder_selected)
         combobox_layout.addWidget(label3, 0, 2)
-        combobox_layout.addWidget(combo_box3, 1, 2)
+        combobox_layout.addWidget(self.combo_box3, 1, 2)
+        
+        label2 = QLabel("Sequences:")
+        self.combo_box2 = QComboBox()
+        self.combo_box2.currentIndexChanged.connect(self.on_sequence_folder_selected)
+        combobox_layout.addWidget(label2, 0, 1)
+        combobox_layout.addWidget(self.combo_box2, 1, 1)
+        
+        
+        label1 = QLabel("Project:")
+        self.combo_box1 = QComboBox()
+        self.combo_box1.currentIndexChanged.connect(self.on_project_folder_selected)
+        self.load_project_folders_into_combobox()
+        combobox_layout.addWidget(label1, 0, 0)
+        combobox_layout.addWidget(self.combo_box1, 1, 0)
+        
+        
+        
+        
         
         # Add the combobox layout to the group box layout
         groupbox_layout.addLayout(combobox_layout)
         
         # Add the group box to the main layout
         layout.addWidget(groupbox)
+
+    def load_project_folders_into_combobox(self):
+        project_folders = load_project_folders(PROJECT_DIRECTORY)
+        self.combo_box1.clear()
+        for project_folder in project_folders:
+            self.combo_box1.addItem(project_folder)
     
+    def on_project_folder_selected(self, index):
+        selected_folder = self.combo_box1.itemText(index)
+        sequences_folder_path = os.path.join(PROJECT_DIRECTORY, selected_folder, "_sequences")
+        self.load_child_folders_into_combobox(sequences_folder_path, self.combo_box2)
+        self.update_context_label()
+    
+    def on_sequence_folder_selected(self, index):
+        selected_folder = self.combo_box2.itemText(index)
+        sequence_folder_path = os.path.join(PROJECT_DIRECTORY, self.combo_box1.currentText(), "_sequences", selected_folder)
+        self.load_child_folders_into_combobox(sequence_folder_path, self.combo_box3)
+
+    def on_shot_folder_selected(self, index):
+        self.update_context_label()
+
+    def load_child_folders_into_combobox(self, directory, combobox):
+        child_folders = load_child_folders(directory)
+        combobox.clear()
+        for child_folder in child_folders:
+            combobox.addItem(child_folder)
+
+    def update_context_label(self):
+        context_text = "context({}_{}_{})".format(self.combo_box1.currentText(), self.combo_box2.currentText(), self.combo_box3.currentText())
+        self.footer_label = QLabel()
+        self.footer_label.setText(context_text)
+
     def create_workarea_groupbox(self, layout):
         # Create the group box
         groupbox = QGroupBox("Workarea")
@@ -384,15 +422,20 @@ class MainWindow(QMainWindow):
         groupbox_layout.addLayout(columns_layout)
         
         # Create the footer label
-        footer_label = QLabel("context (abc)")
+        #self.footer_label = QLabel("abc") #failure of ChatGPT
+        
+        
+        
         
         # Add the footer label to the group box layout
         groupbox_layout.addStretch()
-        groupbox_layout.addWidget(footer_label, alignment=Qt.AlignBottom | Qt.AlignLeft)
+        groupbox_layout.addWidget(self.footer_label, alignment=Qt.AlignBottom | Qt.AlignLeft)
         
         # Add the group box to the main layout
         layout.addWidget(groupbox)
     
+    
+
     def create_scroll_area(self):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -425,9 +468,9 @@ class MainWindow(QMainWindow):
         
         # Icon area
         icon_label = QLabel()
-        icon_pixmap = QPixmap("C:\\Users\\nghia.tran\\Downloads\\20369-16x16x32.png")
+        icon_pixmap = QPixmap("C:\\Users\\nghia.tran\\Downloads\\photo_2024-05-29_11-23-33.png")
         icon_label.setPixmap(icon_pixmap)
-        icon_label.setFixedSize(32, 32)
+        icon_label.setFixedSize(64, 64)
         box_layout.addWidget(icon_label)
         
         # Text area

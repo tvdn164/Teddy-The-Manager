@@ -328,20 +328,20 @@ class MainWindow(QMainWindow):
         # Create the combo boxes and their labels
         
         label3 = QLabel("Shot:")
-        self.combo_box3 = QComboBox()
+        self.combo_box3 = QComboBox() 
         self.combo_box3.currentIndexChanged.connect(self.on_shot_folder_selected)
         combobox_layout.addWidget(label3, 0, 2)
         combobox_layout.addWidget(self.combo_box3, 1, 2)
         
         label2 = QLabel("Sequences:")
-        self.combo_box2 = QComboBox()
+        self.combo_box2 = QComboBox() 
         self.combo_box2.currentIndexChanged.connect(self.on_sequence_folder_selected)
         combobox_layout.addWidget(label2, 0, 1)
         combobox_layout.addWidget(self.combo_box2, 1, 1)
         
         
         label1 = QLabel("Project:")
-        self.combo_box1 = QComboBox()
+        self.combo_box1 = QComboBox() 
         self.combo_box1.currentIndexChanged.connect(self.on_project_folder_selected)
         self.load_project_folders_into_combobox()
         combobox_layout.addWidget(label1, 0, 0)
@@ -360,33 +360,63 @@ class MainWindow(QMainWindow):
     def load_project_folders_into_combobox(self):
         project_folders = load_project_folders(PROJECT_DIRECTORY)
         self.combo_box1.clear()
+        self.combo_box1.addItem("")  # Add empty item by default
         for project_folder in project_folders:
             self.combo_box1.addItem(project_folder)
     
+    def load_child_folders_into_combobox(self, directory, combobox):
+        try:
+            child_folders = load_child_folders(directory)
+        except WindowsError as e:
+            print("Error loading child folders: {}".format(e))
+            child_folders = []
+        
+        combobox.clear()
+        if not child_folders:
+            combobox.addItem("empty")
+        else:
+            for child_folder in child_folders:
+                combobox.addItem(child_folder)
+
     def on_project_folder_selected(self, index):
+        
+        if index == 0:
+            self.combo_box2.clear()
+            self.combo_box2.addItem("")
+            self.combo_box3.clear()
+            self.combo_box3.addItem("")
+            self.update_context_label()
+            return
+
         selected_folder = self.combo_box1.itemText(index)
         sequences_folder_path = os.path.join(PROJECT_DIRECTORY, selected_folder, "_sequences")
+        print("Loading sequences from: {}".format(sequences_folder_path))  # Debug print
         self.load_child_folders_into_combobox(sequences_folder_path, self.combo_box2)
+        # Clear combo_box3 when a new project is selected
+        self.combo_box3.clear()
+        self.combo_box3.addItem("empty")
         self.update_context_label()
-    
+
     def on_sequence_folder_selected(self, index):
+        # Remove the check for index == 0
         selected_folder = self.combo_box2.itemText(index)
         sequence_folder_path = os.path.join(PROJECT_DIRECTORY, self.combo_box1.currentText(), "_sequences", selected_folder)
+        print("Loading shots from: {}".format(sequence_folder_path))  # Debug print
         self.load_child_folders_into_combobox(sequence_folder_path, self.combo_box3)
+        self.update_context_label()
 
     def on_shot_folder_selected(self, index):
         self.update_context_label()
 
-    def load_child_folders_into_combobox(self, directory, combobox):
-        child_folders = load_child_folders(directory)
-        combobox.clear()
-        for child_folder in child_folders:
-            combobox.addItem(child_folder)
+    
 
     def update_context_label(self):
-        context_text = "context({}_{}_{})".format(self.combo_box1.currentText(), self.combo_box2.currentText(), self.combo_box3.currentText())
+        
         self.footer_label = QLabel()
+        context_text = "context({}_{}_{})".format(self.combo_box1.currentText(), self.combo_box2.currentText(), self.combo_box3.currentText())
+        print("context({})".format(context_text))
         self.footer_label.setText(context_text)
+        
 
     def create_workarea_groupbox(self, layout):
         # Create the group box
@@ -421,9 +451,7 @@ class MainWindow(QMainWindow):
         
         groupbox_layout.addLayout(columns_layout)
         
-        # Create the footer label
-        #self.footer_label = QLabel("abc") #failure of ChatGPT
-        
+       
         
         
         
@@ -434,7 +462,29 @@ class MainWindow(QMainWindow):
         # Add the group box to the main layout
         layout.addWidget(groupbox)
     
-    
+    def populateModel(self):
+        whitelist = ['mdl_master', 'rig_master', 'lgt_master', 'anim_master']
+        directory = '{}\\{}\\{}\\{}'.format(PROJECT_DIRECTORY,self.combo_box1.currentText(), self.combo_box2.currentText(), self.combo_box3.currentText())
+
+        for folder_name in os.listdir(directory):
+            folder_path = os.path.join(directory, folder_name)
+            if os.path.isdir(folder_path) and folder_name in whitelist:
+                max_files = self.find_max_files_in_highest_version(folder_path)
+                for max_file in max_files:
+                    self.addButton(max_file)
+
+    def find_max_files_in_highest_version(self, folder_path):
+            version_folders = [f for f in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, f)) and f.startswith('v')]
+            if not version_folders:
+                return []
+
+            version_folders_sorted = sorted(version_folders, key=lambda f: int(f[1:]), reverse=True)
+            for version_folder in version_folders_sorted:
+                highest_version_path = os.path.join(folder_path, version_folder)
+                max_files = [f for f in os.listdir(highest_version_path) if os.path.isfile(os.path.join(highest_version_path, f)) and f.endswith('.max')]
+                if max_files:
+                    return [os.path.join(highest_version_path, f) for f in max_files]
+
 
     def create_scroll_area(self):
         scroll_area = QScrollArea()
